@@ -148,7 +148,7 @@ export default class OllamaProvider extends BaseProvider {
     return ollamaProvider(model, {
       numCtx: this.getDefaultNumCtx(serverEnv),
       numPredict: this.getDefaultNumPredict(serverEnv),
-      repeatLastN: -1,
+      repeatLastN: 4096,
       repeatPenalty: 1.15,
       minP: 0.05,
       topK: 40,
