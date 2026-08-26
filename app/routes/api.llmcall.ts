@@ -111,7 +111,11 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         providerSettings,
       });
 
-      return new Response(result.textStream, {
+      /*
+       * Cloudflare workerd requires Response streams to yield bytes, not strings.
+       * result.textStream is a ReadableStream<string>, so encode it before returning.
+       */
+      return new Response(result.textStream.pipeThrough(new TextEncoderStream()), {
         status: 200,
         headers: {
           'Content-Type': 'text/plain; charset=utf-8',

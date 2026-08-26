@@ -110,11 +110,14 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       }
     })();
 
-    // Return the text stream directly since it's already text data
-    return new Response(result.textStream, {
+    /*
+     * Cloudflare workerd requires Response streams to yield bytes, not strings.
+     * result.textStream is a ReadableStream<string>, so encode it before returning.
+     */
+    return new Response(result.textStream.pipeThrough(new TextEncoderStream()), {
       status: 200,
       headers: {
-        'Content-Type': 'text/event-stream',
+        'Content-Type': 'text/plain; charset=utf-8',
         Connection: 'keep-alive',
         'Cache-Control': 'no-cache',
       },
