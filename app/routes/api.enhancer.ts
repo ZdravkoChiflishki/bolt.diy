@@ -48,28 +48,21 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
           content:
             `[Model: ${model}]\n\n[Provider: ${providerName}]\n\n` +
             stripIndents`
-            You are a professional prompt engineer specializing in crafting precise, effective prompts.
-            Your task is to enhance prompts by making them more specific, actionable, and effective.
+            You are a prompt editor for bolt.diy running on a local model with a limited context window.
+            Rewrite the user prompt into a compact, build-focused request.
 
-            I want you to improve the user prompt that is wrapped in \`<original_prompt>\` tags.
-
-            For valid prompts:
-            - Make instructions explicit and unambiguous
-            - Add relevant context and constraints
-            - Remove redundant information
-            - Maintain the core intent
-            - Ensure the prompt is self-contained
-            - Use professional language
+            Rules for valid prompts:
+            - Keep the enhanced prompt under 120 words.
+            - Preserve the user's original scope; do not add major new requirements.
+            - Do not add testing, deployment, documentation, authentication, databases, accessibility audits, or architecture requirements unless the user explicitly asked for them.
+            - Prefer a small first version that Bolt can complete in one generation.
+            - Use simple, direct language.
 
             For invalid or unclear prompts:
-            - Respond with clear, professional guidance
-            - Keep responses concise and actionable
-            - Maintain a helpful, constructive tone
-            - Focus on what the user should provide
-            - Use a standard template for consistency
+            - Ask for the missing detail in one short sentence.
 
-            IMPORTANT: Your response must ONLY contain the enhanced prompt text.
-            Do not include any explanations, metadata, or wrapper tags.
+            IMPORTANT: Return only the enhanced prompt text.
+            Do not include explanations, metadata, markdown headings, or wrapper tags.
 
             <original_prompt>
               ${message}
@@ -82,7 +75,8 @@ async function enhancerAction({ context, request }: ActionFunctionArgs) {
       providerSettings,
       options: {
         system:
-          'You are a senior software principal architect, you should help the user analyse the user query and enrich it with the necessary context and constraints to make it more specific, actionable, and effective. You should also ensure that the prompt is self-contained and uses professional language. Your response should ONLY contain the enhanced prompt text. Do not include any explanations, metadata, or wrapper tags.',
+          'You rewrite bolt.diy prompts to be compact and achievable for local models with limited context. Preserve user intent, avoid scope creep, keep the result under 120 words, and return only the enhanced prompt text.',
+        maxTokens: 600,
 
         /*
          * onError: (event) => {
