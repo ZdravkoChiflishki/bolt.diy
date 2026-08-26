@@ -15,7 +15,6 @@ import SetupGuide from './SetupGuide';
 import StatusDashboard from './StatusDashboard';
 import ProviderCard from './ProviderCard';
 import ModelCard from './ModelCard';
-import { OLLAMA_API_URL } from './types';
 import type { OllamaModel, LMStudioModel } from './types';
 import { Cpu, Server, BookOpen, Activity, PackageOpen, Monitor, Loader2, RotateCw, ExternalLink } from 'lucide-react';
 
@@ -96,8 +95,8 @@ export default function LocalProvidersTab() {
   useEffect(() => {
     const ollamaProvider = filteredProviders.find((p) => p.name === 'Ollama');
 
-    if (ollamaProvider?.settings.enabled) {
-      fetchOllamaModels();
+    if (ollamaProvider?.settings.enabled && ollamaProvider.settings.baseUrl) {
+      fetchOllamaModels(ollamaProvider.settings.baseUrl);
     }
   }, [filteredProviders]);
 
@@ -110,11 +109,11 @@ export default function LocalProvidersTab() {
     }
   }, [filteredProviders]);
 
-  const fetchOllamaModels = async () => {
+  const fetchOllamaModels = async (baseUrl: string) => {
     try {
       setIsLoadingModels(true);
 
-      const response = await fetch(`${OLLAMA_API_URL}/api/tags`);
+      const response = await fetch(`${baseUrl}/api/tags`);
 
       if (!response.ok) {
         throw new Error('Failed to fetch models');
@@ -190,11 +189,19 @@ export default function LocalProvidersTab() {
     [updateProviderSettings, toast],
   );
 
+  const getOllamaBaseUrl = () => filteredProviders.find((provider) => provider.name === 'Ollama')?.settings.baseUrl;
+
   const handleUpdateOllamaModel = async (modelName: string) => {
     try {
       setOllamaModels((prev) => prev.map((m) => (m.name === modelName ? { ...m, status: 'updating' } : m)));
 
-      const response = await fetch(`${OLLAMA_API_URL}/api/pull`, {
+      const baseUrl = getOllamaBaseUrl();
+
+      if (!baseUrl) {
+        throw new Error('No Ollama base URL configured');
+      }
+
+      const response = await fetch(`${baseUrl}/api/pull`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: modelName }),
@@ -265,7 +272,13 @@ export default function LocalProvidersTab() {
     }
 
     try {
-      const response = await fetch(`${OLLAMA_API_URL}/api/delete`, {
+      const baseUrl = getOllamaBaseUrl();
+
+      if (!baseUrl) {
+        throw new Error('No Ollama base URL configured');
+      }
+
+      const response = await fetch(`${baseUrl}/api/delete`, {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: modelName }),
@@ -370,7 +383,7 @@ export default function LocalProvidersTab() {
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={fetchOllamaModels}
+                        onClick={() => fetchOllamaModels(provider.settings.baseUrl!)}
                         disabled={isLoadingModels}
                         className="bg-transparent hover:bg-bolt-elements-background-depth-2"
                       >

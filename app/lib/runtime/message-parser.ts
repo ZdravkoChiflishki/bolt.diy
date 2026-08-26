@@ -148,7 +148,7 @@ export class StreamingMessageParser {
 
             let content = currentAction.content.trim();
 
-            if ('type' in currentAction && currentAction.type === 'file') {
+            if ('type' in currentAction && currentAction.type === 'file' && currentAction.filePath) {
               // Remove markdown code block syntax if present and file is not markdown
               if (!currentAction.filePath.endsWith('.md')) {
                 content = cleanoutMarkdownSyntax(content);
@@ -179,7 +179,7 @@ export class StreamingMessageParser {
 
             i = closeIndex + ARTIFACT_ACTION_TAG_CLOSE.length;
           } else {
-            if ('type' in currentAction && currentAction.type === 'file') {
+            if ('type' in currentAction && currentAction.type === 'file' && currentAction.filePath) {
               let content = input.slice(i);
 
               if (!currentAction.filePath.endsWith('.md')) {
@@ -366,10 +366,13 @@ export class StreamingMessageParser {
         (actionAttributes as SupabaseAction).filePath = filePath;
       }
     } else if (actionType === 'file') {
-      const filePath = this.#extractAttribute(actionTag, 'filePath') as string;
+      const filePath = (this.#extractAttribute(actionTag, 'filePath') || this.#extractAttribute(actionTag, 'path')) as
+        | string
+        | undefined;
 
       if (!filePath) {
-        logger.debug('File path not specified');
+        logger.warn(`Ignoring file action without filePath: ${actionTag}`);
+        return actionAttributes as FileAction | ShellAction;
       }
 
       (actionAttributes as FileAction).filePath = filePath;

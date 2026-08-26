@@ -19,7 +19,7 @@ export const PROVIDER_COMPLETION_LIMITS: Record<string, number> = {
   Groq: 8192,
   HuggingFace: 4096,
   Mistral: 8192,
-  Ollama: 8192,
+  Ollama: 4096,
   OpenRouter: 8192,
   Perplexity: 8192,
   Together: 8192,

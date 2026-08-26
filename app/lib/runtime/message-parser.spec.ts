@@ -156,6 +156,47 @@ describe('StreamingMessageParser', () => {
     ])('should correctly parse chunks and strip out bolt artifacts (%#)', (input, expected) => {
       runTest(input, expected);
     });
+
+    it('should not throw when a streamed file action is missing filePath', () => {
+      const parser = new StreamingMessageParser({
+        artifactElement: () => '',
+        callbacks: {
+          onActionOpen: vi.fn(),
+          onActionClose: vi.fn(),
+        },
+      });
+
+      expect(() => {
+        parser.parse(
+          'test_id',
+          'Before <boltArtifact title="Some title"><boltAction type="file">some content</boltAction></boltArtifact> After',
+        );
+      }).not.toThrow();
+    });
+
+    it('should accept path as a fallback for filePath on file actions', () => {
+      const onActionClose = vi.fn<ActionCallback>();
+      const parser = new StreamingMessageParser({
+        artifactElement: () => '',
+        callbacks: {
+          onActionClose,
+        },
+      });
+
+      parser.parse(
+        'test_id',
+        'Before <boltArtifact title="Some title"><boltAction type="file" path="index.html">some content</boltAction></boltArtifact> After',
+      );
+
+      expect(onActionClose).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: expect.objectContaining({
+            type: 'file',
+            filePath: 'index.html',
+          }),
+        }),
+      );
+    });
   });
 });
 

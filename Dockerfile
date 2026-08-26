@@ -9,8 +9,8 @@ ENV CI=true
 # Use pnpm
 RUN corepack enable && corepack prepare pnpm@9.15.9 --activate
 
-# Ensure git is available for build and runtime scripts
-RUN apt-get update && apt-get install -y --no-install-recommends git \
+# Ensure git is available for build/runtime scripts and system CA roots for workerd HTTPS
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates git \
   && rm -rf /var/lib/apt/lists/*
 
 # Accept (optional) build-time public URL for Remix/Vite (Coolify can pass it)
@@ -32,8 +32,7 @@ RUN NODE_OPTIONS=--max-old-space-size=4096 pnpm run build
 # ---- production dependencies stage ----
 FROM build AS prod-deps
 
-# Keep only production deps for runtime
-RUN pnpm prune --prod --ignore-scripts
+# Keep dev dependencies too: the runtime command uses wrangler, which is a devDependency.
 
 
 # ---- production stage ----
@@ -57,8 +56,8 @@ ENV WRANGLER_SEND_METRICS=false \
 # Note: API keys should be provided at runtime via docker run -e or docker-compose
 # Example: docker run -e OPENAI_API_KEY=your_key_here ...
 
-# Install curl for healthchecks and copy bindings script
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+# Install curl for healthchecks and system CA roots for workerd outbound HTTPS
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates curl \
   && rm -rf /var/lib/apt/lists/*
 
 # Copy built files and scripts

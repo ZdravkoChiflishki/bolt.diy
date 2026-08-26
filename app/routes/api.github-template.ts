@@ -1,6 +1,12 @@
 import { json } from '@remix-run/cloudflare';
 import JSZip from 'jszip';
 
+const githubHeaders = (githubToken?: string) => ({
+  Accept: 'application/vnd.github.v3+json',
+  'User-Agent': 'bolt.diy-app',
+  ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
+});
+
 // Function to detect if we're running in Cloudflare
 function isCloudflareEnvironment(context: any): boolean {
   // Check if we're in production AND have Cloudflare Pages specific env vars
@@ -20,11 +26,7 @@ async function fetchRepoContentsCloudflare(repo: string, githubToken?: string) {
 
   // Get repository info to find default branch
   const repoResponse = await fetch(`${baseUrl}/repos/${repo}`, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'bolt.diy-app',
-      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-    },
+    headers: githubHeaders(githubToken),
   });
 
   if (!repoResponse.ok) {
@@ -36,11 +38,7 @@ async function fetchRepoContentsCloudflare(repo: string, githubToken?: string) {
 
   // Get the tree recursively
   const treeResponse = await fetch(`${baseUrl}/repos/${repo}/git/trees/${defaultBranch}?recursive=1`, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'bolt.diy-app',
-      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-    },
+    headers: githubHeaders(githubToken),
   });
 
   if (!treeResponse.ok) {
@@ -82,11 +80,7 @@ async function fetchRepoContentsCloudflare(repo: string, githubToken?: string) {
     const batchPromises = batch.map(async (file: any) => {
       try {
         const contentResponse = await fetch(`${baseUrl}/repos/${repo}/contents/${file.path}`, {
-          headers: {
-            Accept: 'application/vnd.github.v3+json',
-            'User-Agent': 'bolt.diy-app',
-            ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-          },
+          headers: githubHeaders(githubToken),
         });
 
         if (!contentResponse.ok) {
@@ -126,11 +120,7 @@ async function fetchRepoContentsZip(repo: string, githubToken?: string) {
 
   // Get the latest release
   const releaseResponse = await fetch(`${baseUrl}/repos/${repo}/releases/latest`, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      'User-Agent': 'bolt.diy-app',
-      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-    },
+    headers: githubHeaders(githubToken),
   });
 
   if (!releaseResponse.ok) {
@@ -142,9 +132,7 @@ async function fetchRepoContentsZip(repo: string, githubToken?: string) {
 
   // Fetch the zipball
   const zipResponse = await fetch(zipballUrl, {
-    headers: {
-      ...(githubToken ? { Authorization: `Bearer ${githubToken}` } : {}),
-    },
+    headers: githubHeaders(githubToken),
   });
 
   if (!zipResponse.ok) {
@@ -219,7 +207,12 @@ export async function loader({ request, context }: { request: Request; context: 
     if (isCloudflareEnvironment(context)) {
       fileList = await fetchRepoContentsCloudflare(repo, githubToken);
     } else {
-      fileList = await fetchRepoContentsZip(repo, githubToken);
+      try {
+        fileList = await fetchRepoContentsZip(repo, githubToken);
+      } catch (zipError) {
+        console.warn('Failed to fetch GitHub template zipball, falling back to Contents API:', zipError);
+        fileList = await fetchRepoContentsCloudflare(repo, githubToken);
+      }
     }
 
     // Filter out .git files for both methods

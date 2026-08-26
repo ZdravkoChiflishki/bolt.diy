@@ -42,7 +42,24 @@ export default class OllamaProvider extends BaseProvider {
   getDefaultNumCtx(serverEnv?: Env): number {
     const envRecord = this.convertEnvToRecord(serverEnv);
 
-    return envRecord.DEFAULT_NUM_CTX ? parseInt(envRecord.DEFAULT_NUM_CTX, 10) : 32768;
+    const configuredNumCtx = envRecord.DEFAULT_NUM_CTX ? parseInt(envRecord.DEFAULT_NUM_CTX, 10) : 16384;
+
+    if (!Number.isFinite(configuredNumCtx) || configuredNumCtx <= 0) {
+      return 16384;
+    }
+
+    return configuredNumCtx;
+  }
+
+  getDefaultNumPredict(serverEnv?: Env): number {
+    const envRecord = this.convertEnvToRecord(serverEnv);
+    const configuredNumPredict = envRecord.OLLAMA_NUM_PREDICT ? parseInt(envRecord.OLLAMA_NUM_PREDICT, 10) : 4096;
+
+    if (!Number.isFinite(configuredNumPredict) || configuredNumPredict <= 0) {
+      return 4096;
+    }
+
+    return configuredNumPredict;
   }
 
   private _resolveBaseUrl(
@@ -84,12 +101,13 @@ export default class OllamaProvider extends BaseProvider {
       }
 
       const data = (await response.json()) as OllamaApiResponse;
+      const maxTokenAllowed = this.getDefaultNumCtx(serverEnv as unknown as Env);
 
       return data.models.map((model: OllamaModel) => ({
         name: model.name,
         label: `${model.name} (${model.details.parameter_size})`,
         provider: this.name,
-        maxTokenAllowed: 8000,
+        maxTokenAllowed,
       }));
     } catch (error) {
       if (error instanceof DOMException && error.name === 'TimeoutError') {
@@ -129,6 +147,11 @@ export default class OllamaProvider extends BaseProvider {
 
     return ollamaProvider(model, {
       numCtx: this.getDefaultNumCtx(serverEnv),
+      numPredict: this.getDefaultNumPredict(serverEnv),
+      repeatLastN: -1,
+      repeatPenalty: 1.15,
+      minP: 0.05,
+      topK: 40,
     });
   };
 }
