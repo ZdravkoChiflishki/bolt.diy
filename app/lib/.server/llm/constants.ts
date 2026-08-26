@@ -24,7 +24,7 @@ export const PROVIDER_COMPLETION_LIMITS: Record<string, number> = {
   Perplexity: 8192,
   Together: 8192,
   xAI: 8192,
-  LMStudio: 8192,
+  LMStudio: 4096,
   OpenAILike: 8192,
   AmazonBedrock: 8192,
   Hyperbolic: 8192,

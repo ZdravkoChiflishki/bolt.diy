@@ -219,6 +219,35 @@ export async function streamText(props: {
     console.log('No locked files found from any source for prompt.');
   }
 
+  if (['LMStudio', 'Ollama', 'OpenAILike'].includes(provider.name) && chatMode === 'build') {
+    systemPrompt = `${systemPrompt}
+
+    <local_model_format_guard>
+      You are connected through a local/OpenAI-compatible provider. These models often ignore earlier formatting rules, so this final rule overrides any tendency to answer with markdown only.
+
+      CRITICAL OUTPUT FORMAT FOR BUILD REQUESTS:
+      - If the user asks to create an app, game, website, page, component, or project, you MUST create exactly one <boltArtifact>.
+      - Inside that artifact, create real project files with <boltAction type="file" filePath="...">...</boltAction>.
+      - Include a package.json with a "dev" script when the project should be previewed.
+      - Include <boltAction type="shell">npm install</boltAction> when dependencies are needed.
+      - Include <boltAction type="start">npm run dev</boltAction> so Bolt opens the preview.
+      - Do NOT answer with plain markdown code fences as the main deliverable.
+      - Do NOT prefix files with comments like "<!-- index.html -->" outside boltAction tags.
+      - If the user says "HTML, CSS and JS only", that means the app code should use only those technologies; the surrounding <boltArtifact> and <boltAction> tags are still required control metadata.
+
+      Minimal static app shape:
+      <boltArtifact id="static-app" title="Static App">
+        <boltAction type="file" filePath="package.json">{"scripts":{"dev":"vite"},"dependencies":{"@vitejs/plugin-react":"latest","vite":"latest","typescript":"latest"},"devDependencies":{}}</boltAction>
+        <boltAction type="file" filePath="index.html">...</boltAction>
+        <boltAction type="file" filePath="src/main.js">...</boltAction>
+        <boltAction type="file" filePath="src/style.css">...</boltAction>
+        <boltAction type="shell">npm install</boltAction>
+        <boltAction type="start">npm run dev</boltAction>
+      </boltArtifact>
+    </local_model_format_guard>
+    `;
+  }
+
   logger.info(`Sending llm call to ${provider.name} with model ${modelDetails.name}`);
 
   // Log reasoning model detection and token parameters
