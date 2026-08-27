@@ -25,6 +25,12 @@ function isRecord(value: unknown): value is Record<string, any> {
   return !!value && typeof value === 'object' && !Array.isArray(value);
 }
 
+function getProcessEnv(): Record<string, string | undefined> {
+  return isRecord(globalThis) && isRecord((globalThis as any).process) && isRecord((globalThis as any).process.env)
+    ? (globalThis as any).process.env
+    : {};
+}
+
 function decodeJwtPayload(token: string): Record<string, any> | undefined {
   try {
     const payload = token.split('.')[1];
@@ -67,6 +73,10 @@ function isTokenExpired(accessToken: string): boolean {
 }
 
 async function readJsonFile(path: string): Promise<Record<string, any> | undefined> {
+  if (!isRecord((globalThis as any).process?.versions)) {
+    return undefined;
+  }
+
   try {
     const fs = await import('node:fs/promises');
     const content = await fs.readFile(path, 'utf8');
@@ -122,7 +132,7 @@ function extractTokensFromCodexCliAuth(authStore: Record<string, any>): CodexTok
 }
 
 async function readCodexTokensFromDisk(): Promise<CodexTokens | undefined> {
-  const home = process?.env?.HOME;
+  const home = getProcessEnv().HOME;
 
   if (!home) {
     return undefined;
@@ -188,11 +198,11 @@ async function resolveCodexAccessToken(options: {
     options.apiKeys?.[options.providerName] ||
     options.serverEnv?.CHATGPT_CODEX_ACCESS_TOKEN ||
     options.serverEnv?.CHATGPT_SUBSCRIPTION_API_KEY ||
-    process?.env?.CHATGPT_CODEX_ACCESS_TOKEN ||
-    process?.env?.CHATGPT_SUBSCRIPTION_API_KEY;
+    getProcessEnv().CHATGPT_CODEX_ACCESS_TOKEN ||
+    getProcessEnv().CHATGPT_SUBSCRIPTION_API_KEY;
 
   if (explicitToken?.trim()) {
-    const refreshToken = options.serverEnv?.CHATGPT_CODEX_REFRESH_TOKEN || process?.env?.CHATGPT_CODEX_REFRESH_TOKEN;
+    const refreshToken = options.serverEnv?.CHATGPT_CODEX_REFRESH_TOKEN || getProcessEnv().CHATGPT_CODEX_REFRESH_TOKEN;
 
     return refreshCodexAccessToken({
       accessToken: explicitToken.trim(),
@@ -571,7 +581,7 @@ export default class ChatGPTSubscriptionProvider extends BaseProvider {
     serverEnv: Record<string, string> = {},
   ): Promise<ModelInfo[]> {
     const accessToken = await resolveCodexAccessToken({ apiKeys, serverEnv, providerName: this.name });
-    const accountId = serverEnv.CHATGPT_CODEX_ACCOUNT_ID || process?.env?.CHATGPT_CODEX_ACCOUNT_ID;
+    const accountId = serverEnv.CHATGPT_CODEX_ACCOUNT_ID || getProcessEnv().CHATGPT_CODEX_ACCOUNT_ID;
     const response = await fetch(CODEX_MODELS_URL, {
       headers: codexHeaders(accessToken, accountId),
       signal: this.createTimeoutSignal(10_000),
@@ -609,7 +619,7 @@ export default class ChatGPTSubscriptionProvider extends BaseProvider {
     const envRecord = this.convertEnvToRecord(serverEnv);
     const uiAccessToken = apiKeys?.[this.name]?.trim() || undefined;
 
-    const accountId = envRecord.CHATGPT_CODEX_ACCOUNT_ID || process?.env?.CHATGPT_CODEX_ACCOUNT_ID;
+    const accountId = envRecord.CHATGPT_CODEX_ACCOUNT_ID || getProcessEnv().CHATGPT_CODEX_ACCOUNT_ID;
 
     return new ChatGPTSubscriptionLanguageModel(model, uiAccessToken, envRecord, accountId);
   }
