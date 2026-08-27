@@ -1,5 +1,6 @@
 import AnthropicProvider from './providers/anthropic';
 import CerebrasProvider from './providers/cerebras';
+import ChatGPTSubscriptionProvider from './providers/chatgpt-subscription';
 import CohereProvider from './providers/cohere';
 import DeepseekProvider from './providers/deepseek';
 import FireworksProvider from './providers/fireworks';
@@ -24,6 +25,7 @@ import ZaiProvider from './providers/z-ai';
 export {
   AnthropicProvider,
   CerebrasProvider,
+  ChatGPTSubscriptionProvider,
   CohereProvider,
   DeepseekProvider,
   FireworksProvider,
