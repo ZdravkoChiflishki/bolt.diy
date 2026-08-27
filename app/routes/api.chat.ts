@@ -14,6 +14,11 @@ import { extractPropertiesFromMessage } from '~/lib/.server/llm/utils';
 import type { DesignScheme } from '~/types/design-scheme';
 import { MCPService } from '~/lib/services/mcpService';
 import { StreamRecoveryManager } from '~/lib/.server/llm/stream-recovery';
+import {
+  buildCodexRequestUsageAnnotation,
+  buildCodexResponseUsageAnnotation,
+  isChatGPTSubscriptionProvider,
+} from '~/lib/modules/llm/codex-usage-monitor';
 
 export async function action(args: ActionFunctionArgs) {
   return chatAction(args);
@@ -100,6 +105,11 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
         let messageSliceId = 0;
 
         const processedMessages = await mcpService.processToolInvocations(messages, dataStream);
+        const lastUserMessageForUsage = processedMessages.filter((message) => message.role === 'user').slice(-1)[0];
+        const requestModelInfo = lastUserMessageForUsage
+          ? extractPropertiesFromMessage(lastUserMessageForUsage)
+          : { model: '', provider: '' };
+        const isCodexSubscriptionRequest = isChatGPTSubscriptionProvider(requestModelInfo.provider);
 
         if (processedMessages.length > 3) {
           messageSliceId = processedMessages.length - 3;
@@ -228,6 +238,16 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
             }
 
             if (finishReason !== 'length') {
+              if (isCodexSubscriptionRequest) {
+                dataStream.writeMessageAnnotation(
+                  buildCodexResponseUsageAnnotation({
+                    provider: requestModelInfo.provider,
+                    model: requestModelInfo.model,
+                    usage: cumulativeUsage,
+                  }) as any,
+                );
+              }
+
               dataStream.writeMessageAnnotation({
                 type: 'usage',
                 value: {
@@ -306,6 +326,17 @@ async function chatAction({ context, request }: ActionFunctionArgs) {
           order: progressCounter++,
           message: 'Generating Response',
         } satisfies ProgressAnnotation);
+
+        if (isCodexSubscriptionRequest) {
+          dataStream.writeMessageAnnotation(
+            buildCodexRequestUsageAnnotation({
+              provider: requestModelInfo.provider,
+              model: requestModelInfo.model,
+              messageText: processedMessages.map((message) => message.content || '').join('\n'),
+              contextFiles: filteredFiles,
+            }) as any,
+          );
+        }
 
         const result = await streamText({
           messages: [...processedMessages],

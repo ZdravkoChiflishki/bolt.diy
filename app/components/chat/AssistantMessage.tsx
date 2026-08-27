@@ -96,6 +96,15 @@ export const AssistantMessage = memo(
       promptTokens: number;
       totalTokens: number;
     } = filteredAnnotations.find((annotation) => annotation.type === 'usage')?.value;
+    const codexUsage: {
+      phase: 'request' | 'response';
+      warningLevel: 'info' | 'warning';
+      message: string;
+      estimatedPromptTokens?: number;
+      promptTokens?: number;
+      completionTokens?: number;
+      totalTokens?: number;
+    } = filteredAnnotations.filter((annotation) => annotation.type === 'codexUsage').slice(-1)[0]?.value;
 
     const toolInvocations = parts?.filter((part) => part.type === 'tool-invocation');
     const toolCallAnnotations = filteredAnnotations.filter(
@@ -149,6 +158,17 @@ export const AssistantMessage = memo(
               {usage && (
                 <div>
                   Tokens: {usage.totalTokens} (prompt: {usage.promptTokens}, completion: {usage.completionTokens})
+                </div>
+              )}
+              {codexUsage && (
+                <div
+                  className={
+                    codexUsage.warningLevel === 'warning'
+                      ? 'text-amber-600 dark:text-amber-400'
+                      : 'text-bolt-elements-textSecondary'
+                  }
+                >
+                  {codexUsage.message}
                 </div>
               )}
               {(onRewind || onFork) && messageId && (
