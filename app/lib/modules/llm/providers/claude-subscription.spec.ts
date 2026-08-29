@@ -42,7 +42,7 @@ describe('ClaudeSubscriptionProvider', () => {
       label: 'Claude Sonnet 4.5 (Claude Subscription)',
       provider: 'ClaudeSubscription',
       maxTokenAllowed: 200000,
-      maxCompletionTokens: 64000,
+      maxCompletionTokens: 8192,
     });
   });
 

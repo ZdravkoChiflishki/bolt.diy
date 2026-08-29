@@ -24,7 +24,7 @@ interface AnthropicModelsResponse {
 const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_CODE_OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const DEFAULT_CONTEXT_WINDOW = 200000;
-const DEFAULT_COMPLETION_TOKENS = 64000;
+const DEFAULT_COMPLETION_TOKENS = 8192;
 const DEFAULT_CLAUDE_MODELS: ModelInfo[] = [
   {
     name: 'claude-sonnet-4-5',
@@ -177,7 +177,7 @@ function claudeHeaders(accessToken: string): Record<string, string> {
 
 function modelInfoFromAnthropicModel(model: NonNullable<AnthropicModelsResponse['data']>[number]): ModelInfo {
   const contextWindow = model.max_input_tokens || DEFAULT_CONTEXT_WINDOW;
-  const maxCompletionTokens = model.max_tokens || DEFAULT_COMPLETION_TOKENS;
+  const maxCompletionTokens = Math.min(model.max_tokens || DEFAULT_COMPLETION_TOKENS, DEFAULT_COMPLETION_TOKENS);
   const name = model.id!.trim();
   const displayName = model.display_name || name;
 
