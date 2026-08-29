@@ -1,6 +1,7 @@
 import AnthropicProvider from './providers/anthropic';
 import CerebrasProvider from './providers/cerebras';
 import ChatGPTSubscriptionProvider from './providers/chatgpt-subscription';
+import ClaudeSubscriptionProvider from './providers/claude-subscription';
 import CohereProvider from './providers/cohere';
 import DeepseekProvider from './providers/deepseek';
 import FireworksProvider from './providers/fireworks';
@@ -26,6 +27,7 @@ export {
   AnthropicProvider,
   CerebrasProvider,
   ChatGPTSubscriptionProvider,
+  ClaudeSubscriptionProvider,
   CohereProvider,
   DeepseekProvider,
   FireworksProvider,
