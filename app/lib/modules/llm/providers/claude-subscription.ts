@@ -191,13 +191,33 @@ function modelInfoFromAnthropicModel(model: NonNullable<AnthropicModelsResponse[
 }
 
 export function withoutApiKeyHeader(fetchFn: typeof fetch): typeof fetch {
-  return ((input: RequestInfo | URL, init?: RequestInit) => {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const nextInit: RequestInit = { ...(init || {}) };
     const headers = new Headers(init?.headers || (input instanceof Request ? input.headers : undefined));
     headers.delete('x-api-key');
     nextInit.headers = headers;
 
-    return fetchFn(input, nextInit);
+    const response = await fetchFn(input, nextInit);
+
+    if (response.status === 429) {
+      try {
+        const body = (await response.clone().json()) as any;
+
+        if (body?.error?.type === 'rate_limit_error' && body.error.message === 'Error') {
+          body.error.message = 'ClaudeSubscription is rate limited by Anthropic for this model/account right now';
+
+          return new Response(JSON.stringify(body), {
+            status: response.status,
+            statusText: response.statusText,
+            headers: response.headers,
+          });
+        }
+      } catch {
+        // Preserve the original response if it cannot be parsed.
+      }
+    }
+
+    return response;
   }) as typeof fetch;
 }
 
