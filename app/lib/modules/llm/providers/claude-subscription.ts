@@ -25,6 +25,8 @@ const ANTHROPIC_BASE_URL = 'https://api.anthropic.com/v1';
 const CLAUDE_CODE_OAUTH_CLIENT_ID = '9d1c250a-e61b-44d9-88ed-5944d1962f5e';
 const DEFAULT_CONTEXT_WINDOW = 200000;
 const DEFAULT_COMPLETION_TOKENS = 8192;
+const CLAUDE_CODE_BILLING_MARKER =
+  'x-anthropic-billing-header: cc_version=2.1.251.bolt; cc_entrypoint=sdk-cli; cch=bolt;';
 const DEFAULT_CLAUDE_MODELS: ModelInfo[] = [
   {
     name: 'claude-sonnet-4-5',
@@ -190,6 +192,57 @@ function modelInfoFromAnthropicModel(model: NonNullable<AnthropicModelsResponse[
   };
 }
 
+function systemIncludesClaudeCodeBillingMarker(system: unknown): boolean {
+  if (typeof system === 'string') {
+    return system.includes('x-anthropic-billing-header:');
+  }
+
+  if (Array.isArray(system)) {
+    return system.some(
+      (block) =>
+        isRecord(block) && typeof block.text === 'string' && block.text.includes('x-anthropic-billing-header:'),
+    );
+  }
+
+  return false;
+}
+
+function prependClaudeCodeBillingMarker(system: unknown): unknown {
+  if (systemIncludesClaudeCodeBillingMarker(system)) {
+    return system;
+  }
+
+  if (typeof system === 'string') {
+    return `${CLAUDE_CODE_BILLING_MARKER}\n${system}`;
+  }
+
+  if (Array.isArray(system)) {
+    return [{ type: 'text', text: CLAUDE_CODE_BILLING_MARKER }, ...system];
+  }
+
+  return CLAUDE_CODE_BILLING_MARKER;
+}
+
+function normalizeClaudeMessagesRequestBody(parsedBody: Record<string, any>): boolean {
+  if (typeof parsedBody.model !== 'string' || !parsedBody.model.startsWith('claude-')) {
+    return false;
+  }
+
+  let changed = false;
+
+  if ('temperature' in parsedBody) {
+    delete parsedBody.temperature;
+    changed = true;
+  }
+
+  if (!systemIncludesClaudeCodeBillingMarker(parsedBody.system)) {
+    parsedBody.system = prependClaudeCodeBillingMarker(parsedBody.system);
+    changed = true;
+  }
+
+  return changed;
+}
+
 export function withoutApiKeyHeader(fetchFn: typeof fetch): typeof fetch {
   return (async (input: RequestInfo | URL, init?: RequestInit) => {
     const nextInit: RequestInit = { ...(init || {}) };
@@ -206,12 +259,7 @@ export function withoutApiKeyHeader(fetchFn: typeof fetch): typeof fetch {
         try {
           const parsedBody = JSON.parse(requestBody);
 
-          if (
-            typeof parsedBody?.model === 'string' &&
-            parsedBody.model.startsWith('claude-') &&
-            'temperature' in parsedBody
-          ) {
-            delete parsedBody.temperature;
+          if (isRecord(parsedBody) && normalizeClaudeMessagesRequestBody(parsedBody)) {
             nextInit.body = JSON.stringify(parsedBody);
           }
         } catch {

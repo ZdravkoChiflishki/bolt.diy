@@ -142,6 +142,7 @@ describe('ClaudeSubscriptionProvider', () => {
         model: 'claude-sonnet-5',
         max_tokens: 8192,
         temperature: 0,
+        system: 'You are helpful.',
         messages: [{ role: 'user', content: 'hello' }],
       }),
     });
@@ -153,6 +154,7 @@ describe('ClaudeSubscriptionProvider', () => {
     expect(forwardedBody).toEqual({
       model: 'claude-sonnet-5',
       max_tokens: 8192,
+      system: 'x-anthropic-billing-header: cc_version=2.1.251.bolt; cc_entrypoint=sdk-cli; cch=bolt;\nYou are helpful.',
       messages: [{ role: 'user', content: 'hello' }],
     });
     expect(forwardedHeaders.get('x-api-key')).toBeNull();
