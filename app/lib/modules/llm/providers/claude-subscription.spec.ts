@@ -125,4 +125,37 @@ describe('ClaudeSubscriptionProvider', () => {
     expect(forwardedHeaders.get('x-api-key')).toBeNull();
     expect(forwardedHeaders.get('Authorization')).toBe('Bearer claude-oauth-token');
   });
+
+  it('strips temperature from Claude subscription message requests', async () => {
+    const { withoutApiKeyHeader } = await import('./claude-subscription');
+    const forwardedFetch = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    const oauthFetch = withoutApiKeyHeader(forwardedFetch as any);
+
+    await oauthFetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'x-api-key': 'oauth-placeholder',
+        Authorization: 'Bearer claude-oauth-token',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-5',
+        max_tokens: 8192,
+        temperature: 0,
+        messages: [{ role: 'user', content: 'hello' }],
+      }),
+    });
+
+    const forwardedInit = forwardedFetch.mock.calls[0][1];
+    const forwardedBody = JSON.parse(forwardedInit.body as string);
+    const forwardedHeaders = forwardedInit.headers as Headers;
+
+    expect(forwardedBody).toEqual({
+      model: 'claude-sonnet-5',
+      max_tokens: 8192,
+      messages: [{ role: 'user', content: 'hello' }],
+    });
+    expect(forwardedHeaders.get('x-api-key')).toBeNull();
+    expect(forwardedHeaders.get('Authorization')).toBe('Bearer claude-oauth-token');
+  });
 });

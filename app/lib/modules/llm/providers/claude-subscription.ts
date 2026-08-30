@@ -197,6 +197,29 @@ export function withoutApiKeyHeader(fetchFn: typeof fetch): typeof fetch {
     headers.delete('x-api-key');
     nextInit.headers = headers;
 
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.toString() : input.url;
+
+    if (url.includes('/v1/messages')) {
+      const requestBody = init?.body ?? (input instanceof Request ? await input.clone().text() : undefined);
+
+      if (typeof requestBody === 'string') {
+        try {
+          const parsedBody = JSON.parse(requestBody);
+
+          if (
+            typeof parsedBody?.model === 'string' &&
+            parsedBody.model.startsWith('claude-') &&
+            'temperature' in parsedBody
+          ) {
+            delete parsedBody.temperature;
+            nextInit.body = JSON.stringify(parsedBody);
+          }
+        } catch {
+          // Leave non-JSON request bodies untouched.
+        }
+      }
+    }
+
     const response = await fetchFn(input, nextInit);
 
     if (response.status === 429) {
