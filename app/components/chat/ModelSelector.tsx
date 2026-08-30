@@ -192,6 +192,19 @@ export const ModelSelector = ({
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const selectedModelDetails = useMemo(
+    () => modelList.find((m) => m.name === model && m.provider === provider?.name),
+    [modelList, model, provider?.name],
+  );
+
+  const formatSelectedModelLabel = (modelDetails: ModelInfo): string => {
+    const context = formatContextSize(modelDetails.maxTokenAllowed);
+    const output = formatContextSize(modelDetails.maxCompletionTokens || 0);
+    const baseLabel = modelDetails.label.replace(/\s*\([^)]*context\)/i, '');
+
+    return `${baseLabel} (${context} ctx / ${output} out)`;
+  };
+
   const filteredModels = useMemo(() => {
     const baseModels = [...modelList].filter((e) => e.provider === provider?.name && e.name);
 
@@ -662,7 +675,9 @@ export const ModelSelector = ({
           tabIndex={0}
         >
           <div className="flex min-w-0 items-center justify-between">
-            <div className="min-w-0 truncate">{modelList.find((m) => m.name === model)?.label || 'Select model'}</div>
+            <div className="min-w-0 truncate">
+              {selectedModelDetails ? formatSelectedModelLabel(selectedModelDetails) : 'Select model'}
+            </div>
             <div
               className={classNames(
                 'i-ph:caret-down w-4 h-4 text-bolt-elements-textSecondary opacity-75',
