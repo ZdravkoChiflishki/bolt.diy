@@ -41,6 +41,38 @@ function getCompletionTokenLimit(modelDetails: ModelInfo): number {
   return Math.min(MAX_TOKENS, 16384);
 }
 
+function isAuthenticationError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes('api key') ||
+    message.includes('unauthorized') ||
+    message.includes('authentication') ||
+    message.includes('oauth access token') ||
+    message.includes('access token has been revoked')
+  );
+}
+
+function isTokenLimitError(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  const message = error.message.toLowerCase();
+
+  return (
+    message.includes('max_tokens') ||
+    message.includes('exceeds') ||
+    message.includes('maximum') ||
+    message.includes('context window') ||
+    (message.includes('token') && message.includes('limit'))
+  );
+}
+
 function validateTokenLimits(modelDetails: ModelInfo, requestedTokens: number): { valid: boolean; error?: string } {
   const modelMaxTokens = modelDetails.maxTokenAllowed || 128000;
   const maxCompletionTokens = getCompletionTokenLimit(modelDetails);
@@ -124,23 +156,20 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
     } catch (error: unknown) {
       console.log(error);
 
-      if (error instanceof Error && error.message?.includes('API key')) {
-        throw new Response('Invalid or missing API key', {
-          status: 401,
-          statusText: 'Unauthorized',
-        });
+      if (isAuthenticationError(error)) {
+        throw new Response(
+          'Invalid or expired OAuth token. Refresh your provider login token and update the Kubernetes secret.',
+          {
+            status: 401,
+            statusText: 'Unauthorized',
+          },
+        );
       }
 
       // Handle token limit errors with helpful messages
-      if (
-        error instanceof Error &&
-        (error.message?.includes('max_tokens') ||
-          error.message?.includes('token') ||
-          error.message?.includes('exceeds') ||
-          error.message?.includes('maximum'))
-      ) {
+      if (isTokenLimitError(error)) {
         throw new Response(
-          `Token limit error: ${error.message}. Try reducing your request size or using a model with higher token limits.`,
+          `Token limit error: ${error instanceof Error ? error.message : String(error)}. Try reducing your request size or using a model with higher token limits.`,
           {
             status: 400,
             statusText: 'Token Limit Exceeded',
@@ -257,7 +286,7 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
         provider: (error as any).provider || 'unknown',
       };
 
-      if (error instanceof Error && error.message?.includes('API key')) {
+      if (isAuthenticationError(error)) {
         return new Response(
           JSON.stringify({
             ...errorResponse,
@@ -274,17 +303,11 @@ async function llmCallAction({ context, request }: ActionFunctionArgs) {
       }
 
       // Handle token limit errors with helpful messages
-      if (
-        error instanceof Error &&
-        (error.message?.includes('max_tokens') ||
-          error.message?.includes('token') ||
-          error.message?.includes('exceeds') ||
-          error.message?.includes('maximum'))
-      ) {
+      if (isTokenLimitError(error)) {
         return new Response(
           JSON.stringify({
             ...errorResponse,
-            message: `Token limit error: ${error.message}. Try reducing your request size or using a model with higher token limits.`,
+            message: `Token limit error: ${error instanceof Error ? error.message : String(error)}. Try reducing your request size or using a model with higher token limits.`,
             statusCode: 400,
             isRetryable: false,
           }),
