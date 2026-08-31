@@ -5,6 +5,9 @@ import { createOpenAI } from '@ai-sdk/openai';
 import type { LanguageModelV1 } from 'ai';
 import { logger } from '~/utils/logger';
 
+const LMSTUDIO_MAX_CONTEXT_TOKENS = 132000;
+const LMSTUDIO_MAX_COMPLETION_TOKENS = 16384;
+
 export default class LMStudioProvider extends BaseProvider {
   name = 'LMStudio';
   getApiKeyLink = 'https://lmstudio.ai/';
@@ -62,7 +65,8 @@ export default class LMStudioProvider extends BaseProvider {
         name: model.id,
         label: model.id,
         provider: this.name,
-        maxTokenAllowed: 8000,
+        maxTokenAllowed: LMSTUDIO_MAX_CONTEXT_TOKENS,
+        maxCompletionTokens: LMSTUDIO_MAX_COMPLETION_TOKENS,
       }));
     } catch (error) {
       if (error instanceof DOMException && error.name === 'TimeoutError') {
